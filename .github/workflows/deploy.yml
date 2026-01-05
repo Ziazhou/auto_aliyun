@@ -28,7 +28,6 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    # 关键：转换为小写
     - name: 设置镜像名称
       id: image_name
       run: |
@@ -43,8 +42,6 @@ jobs:
         file: ./nginx/Dockerfile
         push: true
         tags: ${{ steps.image_name.outputs.nginx_image }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
 
     - name: 构建并推送 Python 镜像
       uses: docker/build-push-action@v5
@@ -53,8 +50,6 @@ jobs:
         file: ./python/Dockerfile
         push: true
         tags: ${{ steps.image_name.outputs.python_image }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
 
     - name: 部署到阿里云服务器
       uses: appleboy/ssh-action@v1.0.3
