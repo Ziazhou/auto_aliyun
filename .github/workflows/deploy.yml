@@ -7,7 +7,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # 自动获取你的GitHub用户名和仓库名
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}
 
 jobs:
@@ -15,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write  # 允许推送镜像
+      packages: write
     
     steps:
     - name: 检出代码
@@ -50,11 +49,15 @@ jobs:
 
     - name: 部署到阿里云服务器
       uses: appleboy/ssh-action@v1.0.3
+      env:
+        GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}  # 传递Token到服务器
       with:
         host: ${{ secrets.ALIYUN_HOST }}
         username: ${{ secrets.ALIYUN_USER }}
         key: ${{ secrets.ALIYUN_SSH_KEY }}
+        envs: GHCR_TOKEN  # 声明要传递的环境变量
         script_stop: true
         script: |
+          export GHCR_TOKEN="$GHCR_TOKEN"  # 设置为环境变量
           cd /opt/vue-app
           ./deploy.sh
