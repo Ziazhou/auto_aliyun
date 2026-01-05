@@ -1,0 +1,60 @@
+name: Deploy to Alibaba Cloud
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # 自动获取你的GitHub用户名和仓库名
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # 允许推送镜像
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+
+    - name: 登录到 GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: 构建并推送 Nginx 镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./nginx/Dockerfile
+        push: true
+        tags: ${{ env.IMAGE_PREFIX }}/nginx:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: 构建并推送 Python 镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: ./python
+        file: ./python/Dockerfile
+        push: true
+        tags: ${{ env.IMAGE_PREFIX }}/python:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: 部署到阿里云服务器
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.ALIYUN_HOST }}
+        username: ${{ secrets.ALIYUN_USER }}
+        key: ${{ secrets.ALIYUN_SSH_KEY }}
+        script_stop: true
+        script: |
+          cd /opt/vue-app
+          ./deploy.sh

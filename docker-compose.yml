@@ -1,0 +1,45 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: vue_app_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: 'Zhou123456@mysql'
+      MYSQL_DATABASE: vueapp
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: 'AppUser123@vue'
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - app_network
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  python:
+    # 关键：使用GitHub Container Registry的镜像
+    image: ghcr.io/Ziazhou/auto_aliyun/python:latest
+    container_name: vue_app_python
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    networks:
+      - app_network
+
+  nginx:
+    # 关键：使用GitHub Container Registry的镜像
+    image: ghcr.io/Ziazhou/auto_aliyun/nginx:latest
+    container_name: vue_app_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - python
+    networks:
+      - app_network
+
+volumes:
+  mysql_data:
+
+networks:
+  app_network:
+    driver: bridge
