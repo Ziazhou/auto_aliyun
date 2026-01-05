@@ -16,8 +16,7 @@ services:
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
   python:
-    # 关键：使用GitHub Container Registry的镜像
-    image: ghcr.io/Ziazhou/auto_aliyun/python:latest
+    image: ghcr.io/ziazhou/auto_aliyun/python:latest  # 小写！
     container_name: vue_app_python
     restart: unless-stopped
     depends_on:
@@ -26,8 +25,7 @@ services:
       - app_network
 
   nginx:
-    # 关键：使用GitHub Container Registry的镜像
-    image: ghcr.io/Ziazhou/auto_aliyun/nginx:latest
+    image: ghcr.io/ziazhou/auto_aliyun/nginx:latest  # 小写！
     container_name: vue_app_nginx
     restart: unless-stopped
     ports:

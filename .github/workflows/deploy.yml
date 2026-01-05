@@ -5,10 +5,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -23,7 +19,7 @@ jobs:
     - name: 设置 Docker Buildx
       uses: docker/setup-buildx-action@v3
       with:
-        driver: docker-container  # 关键：使用 container 驱动
+        driver: docker-container
 
     - name: 登录到 GitHub Container Registry
       uses: docker/login-action@v3
@@ -32,13 +28,21 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # 关键：转换为小写
+    - name: 设置镜像名称
+      id: image_name
+      run: |
+        IMAGE_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+        echo "nginx_image=ghcr.io/${IMAGE_NAME}/nginx:latest" >> $GITHUB_OUTPUT
+        echo "python_image=ghcr.io/${IMAGE_NAME}/python:latest" >> $GITHUB_OUTPUT
+
     - name: 构建并推送 Nginx 镜像
       uses: docker/build-push-action@v5
       with:
         context: .
         file: ./nginx/Dockerfile
         push: true
-        tags: ${{ env.IMAGE_PREFIX }}/nginx:latest
+        tags: ${{ steps.image_name.outputs.nginx_image }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
@@ -48,7 +52,7 @@ jobs:
         context: ./python
         file: ./python/Dockerfile
         push: true
-        tags: ${{ env.IMAGE_PREFIX }}/python:latest
+        tags: ${{ steps.image_name.outputs.python_image }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
