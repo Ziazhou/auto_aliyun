@@ -1,44 +1,67 @@
-#!/bin/bash
+name: Deploy to Alibaba Cloud
 
-set -e
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-# 颜色输出
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
 
-echo -e "${GREEN}🔄 开始部署流程${NC}"
+    - name: 设置 Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        driver: docker-container
 
-# 检查必要环境变量
-if [ -z "$GHCR_TOKEN" ]; then
-    echo -e "${RED}❌ 错误: GHCR_TOKEN 未设置${NC}"
-    exit 1
-fi
+    - name: 登录到 GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-cd /opt/vue-app
+    - name: 设置镜像名称
+      id: image_name
+      run: |
+        IMAGE_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+        echo "nginx_image=ghcr.io/${IMAGE_NAME}/nginx:latest" >> $GITHUB_OUTPUT
+        echo "python_image=ghcr.io/${IMAGE_NAME}/python:latest" >> $GITHUB_OUTPUT
 
-# 自动登录
-echo -e "${YELLOW}🔐 登录 GitHub Container Registry${NC}"
-echo "$GHCR_TOKEN" | docker login ghcr.io -u ziazhou --password-stdin
+    - name: 构建并推送 Nginx 镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./nginx/Dockerfile
+        push: true
+        tags: ${{ steps.image_name.outputs.nginx_image }}
 
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Docker 登录失败${NC}"
-    exit 1
-fi
+    - name: 构建并推送 Python 镜像
+      uses: docker/build-push-action@v5
+      with:
+        context: ./python
+        file: ./python/Dockerfile
+        push: true
+        tags: ${{ steps.image_name.outputs.python_image }}
 
-# 拉取镜像
-echo -e "${YELLOW}📥 拉取最新镜像${NC}"
-docker compose pull
-
-# 部署
-echo -e "${YELLOW}🚀 更新容器${NC}"
-docker compose up -d --remove-orphans
-
-# 清理
-echo -e "${YELLOW}🧹 清理旧镜像${NC}"
-docker image prune -af --filter "label!=com.docker.compose.project=vue-app" || true
-
-echo -e "${GREEN}✅ 部署完成${NC}"
-docker compose ps
-docker compose logs --tail=10
+    - name: 部署到阿里云服务器
+      uses: appleboy/ssh-action@v1.0.3
+      env:
+        GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      with:
+        host: ${{ secrets.ALIYUN_HOST }}
+        username: ${{ secrets.ALIYUN_USER }}
+        key: ${{ secrets.ALIYUN_SSH_KEY }}
+        envs: GHCR_TOKEN
+        script_stop: true
+        script: |
+          export GHCR_TOKEN="$GHCR_TOKEN"
+          cd /opt/vue-app
+          ./deploy.sh

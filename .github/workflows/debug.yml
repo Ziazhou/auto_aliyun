@@ -1,0 +1,20 @@
+name: Debug Network
+
+on: workflow_dispatch
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install tools
+        run: sudo apt-get install -y nmap telnet
+        
+      - name: Test port 22
+        run: |
+          echo "Testing SSH port from GitHub Actions..."
+          nmap -p 22 -Pn ${{ secrets.ALIYUN_HOST }}
+          
+      - name: Test HTTP port
+        run: |
+          echo "Testing HTTP port for comparison..."
+          nmap -p 80 -Pn ${{ secrets.ALIYUN_HOST }}
